@@ -1,0 +1,10 @@
+sequenceDiagram
+    participant browser
+    participant server
+
+    browser->>server: POST https://studies.cs.helsinki.fi/exampleapp/new_note_spa
+    activate server
+        Note right of browser: POST JSON data{content: "spa note", date: "2024-07-30T00:21:54.631Z"}
+    server-->>browser: 201 Created
+    deactivate server
+        Note left of server: prevent default event handler. creates a new note
