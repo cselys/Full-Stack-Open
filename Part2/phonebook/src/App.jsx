@@ -68,7 +68,7 @@ const App = () => {
       <PersonForm persons={persons} updatePersons={updatePersons} updateFiltered={handleFilterUpdate} setNotification={setNotification}/>
 
       <h2>Numbers</h2>
-      <ListPersons filtered={personsFiltered} updateFiltered={handleFilterUpdate}/>
+      <ListPersons filtered={personsFiltered} persons={persons} updatePersons={updatePersons} updateFiltered={handleFilterUpdate}/>
     </div>
   );
 };
