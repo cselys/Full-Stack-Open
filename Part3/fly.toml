@@ -1,0 +1,25 @@
+# fly.toml app configuration file generated for part3-phonebook-backend-4788 on 2024-11-03T17:57:27-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'part3-phonebook-backend-4788'
+primary_region = 'bos'
+
+[build]
+
+[env]
+  PORT = "3000" # add this
+  
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
