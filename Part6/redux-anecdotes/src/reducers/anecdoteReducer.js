@@ -15,9 +15,6 @@ const quoteSlice = createSlice ({
   name: 'quotes',
   initialState: [],
   reducers: {
-    // addAnecdote(state, action) {
-    //   return [...state, asObject(action.payload)]
-    // },
     voteAnecdote(state, action) {
       const votedQuote = action.payload
       return state.map( quote => quote.id === votedQuote.id ? votedQuote: quote ).sort((a,b)=>b.votes-a.votes)
