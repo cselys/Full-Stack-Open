@@ -1,12 +1,21 @@
 const { ApolloServer } = require('@apollo/server')
-const { startStandaloneServer } = require('@apollo/server/standalone')
-const { v4: uuidv4 } = require('uuid')
-const { GraphQLError } = require('graphql')
+const { expressMiddleware } = require('@apollo/server/express4')
+const { ApolloServerPluginDrainHttpServer } = require('@apollo/server/plugin/drainHttpServer')
+const { makeExecutableSchema } = require('@graphql-tools/schema')
+const express = require('express')
+const cors = require('cors')
+const http = require('http')
+const jwt = require('jsonwebtoken')
+const { WebSocketServer } = require('ws')
+const { useServer } = require('graphql-ws/lib/use/ws')
 
 const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
-const Book = require('./models/book')
-const Author = require('./models/author')
+
+const User = require('./models/user')
+
+const typeDefs = require('./schema')
+const resolvers = require('./resolvers')
 
 require('dotenv').config()
 
@@ -22,117 +31,56 @@ mongoose.connect(MONGODB_URI)
     console.log('error connection to MongoDB:', error.message)
   })
 
-/*
-  you can remove the placeholder query once your first one has been implemented 
-*/
+const start = async () => {
+  const app = express()
+  const httpServer = http.createServer(app)
 
-const typeDefs = `
-  type Book {
-    title: String!
-    published: Int!
-    author:  Author!
-    genres: [String]
-    id: ID! 
-  }
-  
-  type Author {
-    name: String!
-    id: ID!
-    born: Int
-  }
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: '/',
+  })
 
-  type AuthorBookCount{
-    name: String!
-    born: Int
-    bookCount: Int!
-  }
+  const schema = makeExecutableSchema({ typeDefs, resolvers })
+  const serverCleanup = useServer({ schema }, wsServer)
 
-  type Query {
-    bookCount: Int!
-    authorCount: Int!
-    allBooks(author: String, genres: [String]): [Book]
-    allAuthors: [AuthorBookCount]
-  }
+  const server = new ApolloServer({
+    schema: makeExecutableSchema({ typeDefs, resolvers }),
+    plugins: [ApolloServerPluginDrainHttpServer({ httpServer }),
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              await serverCleanup.dispose();
+            },
+          };
+        },
+      },
+    ],
+  })
 
-  type Mutation {
-    addBook(
-       title: String!
-       published: Int!
-       author: String!
-       genres: [String!]!
-    ): Book
+  await server.start()
 
-    editAuthor(
-        name:String!
-        setBornTo:Int!
-    ): Author
-  }
-`
-const resolvers = {
-  Query: {
-    bookCount: async() => Book.collection.countDocuments(),
-    authorCount: async() => Author.collection.countDocuments(),
-    allBooks: (root, args) => {
-      return Book.find({})
-        // if(args.author && args.genres){
-        //     return books.filter( book => book.author===args.author && 
-        //         JSON.stringify(book.genres) === JSON.stringify(args.genres) )
-        // }else if(args.author){
-        //     return books.filter( book => book.author===args.author)
-        // }else if(args.genres){
-        //     return books.filter( book => JSON.stringify(book.genres)===JSON.stringify(args.genres))
-        // }else
-        //     return books
-    },
-    allAuthors: () => {
-      return Author.find({})
-        // const authorBookcount = books.reduce((acc, book) =>{
-        //     const {author} = book;
+  app.use(
+    '/',
+    cors(),
+    express.json(),
+    expressMiddleware(server, {
+      context: async ({ req }) => {
+        const auth = req ? req.headers.authorization : null
+        if (auth && auth.startsWith('Bearer ')) {
+          const decodedToken = jwt.verify(auth.substring(7), process.env.JWT_SECRET)
+          const currentUser = await User.findById(decodedToken.id)
+          return { currentUser }
+        }
+      },
+    }),
+  )
 
-        //     if(!acc[author]){
-        //         const authorborn = authors.find( a => a.name === author)
-        //         acc[author] = {name: author, born:authorborn.born, bookCount: 0}
-        //     }
-        //     acc[author].bookCount++;
-        //     return acc;
-        // }, {});
-        
-        // return Object.values(authorBookcount)
-    },
-  },
+  const PORT = 4000
 
-  Mutation: {
-    addBook: (root, args) => {
-        const book = {...args, id: uuidv4()}
-        // books = books.concat(book)
-        // if(authors.filter(a => a.author===args.author).length === 0){
-        //     author = {
-        //         name:args.author,
-        //         id: uuidv4(),
-        //         born:null
-        //     }
-        //     authors = authors.concat(author)
-        // }
-        // return book
-    },
-    editAuthor: (root, args) => {
-        // const author = authors.find(a => a.name===args.name)
-        // if(!author) return null
-        // const updatedAuthor = {...author, born:args.setBornTo}
-        // authors = authors.map (a => a.name===args.name ? updatedAuthor : a)
-        // return updatedAuthor
-    }
-  }
+  httpServer.listen(PORT, () =>
+    console.log(`Server is now running on http://localhost:${PORT}`)
+  )
 }
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  cors: false,
-})
-
-startStandaloneServer(server, {
-  listen: { port: 4000 },
-}).then(({ url }) => {
-  console.log(`Server ready at ${url}`)
-})
+start()

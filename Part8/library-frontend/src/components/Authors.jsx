@@ -17,6 +17,8 @@ const Authors = (props) => {
     return null
   }
 
+  console.log("loading")
+
   if(result.loading){
     return <div>loading...</div>
   }
@@ -37,34 +39,38 @@ const Authors = (props) => {
           <tr>
             <th></th>
             <th>born</th>
-            <th>books</th>
+            {/* <th>books</th> */}
           </tr>
           {authors.map((a) => (
             <tr key={a.name}>
               <td>{a.name}</td>
               <td>{a.born}</td>
-              <td>{a.bookCount}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <h2>Set birthyear</h2>
-      <select name="selectedAuthor" value={author} onChange={(event) => {setAuthor(event.target.value)}}>
-        {authors.map((a) => (
-          <option key={a.name} value={a.name}>{a.name}</option>
-        ))}
-      </select>
-       <div>
-       born
-          <input
-            type="number"
-            min='1900'
-            max='2020'
-            value={born}
-            onChange={(event) => {setBorn(event.target.value)}}
-          />
-        </div>
-        <button type="submit" onClick={setAuthorBorn}>update author</button>
+    {
+    props.allowUpdate &&
+   ( <>
+   <h2>Set birthyear</h2>
+    <select name="selectedAuthor" value={author} onChange={(event) => {setAuthor(event.target.value)}}>
+      {authors.map((a) => (
+        <option key={a.name} value={a.name}>{a.name}</option>
+      ))}
+    </select>
+      <div>
+      born
+        <input
+          type="number"
+          min='1900'
+          max='2020'
+          value={born}
+          onChange={(event) => {setBorn(event.target.value)}}
+        />
+      </div>
+      <button type="submit" onClick={setAuthorBorn}>update author</button>
+    </>
+    )}
     </div>
   )
 }
